@@ -20,14 +20,7 @@
             height: 100vh;
         }
         #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            color: white;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 14px;
+            display: none;
         }
         #modal {
             display: none;
@@ -111,34 +104,13 @@
             left: 0;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            background: #000000;
             z-index: 8888;
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             animation: fadeIn 1s ease-out;
-        }
-        #mission-screen::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(circle at 20% 50%, rgba(255, 0, 150, 0.15) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 80%, rgba(0, 200, 255, 0.15) 0%, transparent 50%);
-            animation: gradientShift 8s ease-in-out infinite;
-        }
-        @keyframes gradientShift {
-            0%, 100% {
-                opacity: 0.8;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 1;
-                transform: scale(1.1);
-            }
         }
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -231,9 +203,8 @@
 <body>
     <div id="mission-screen">
         <div id="mission-content">
-            <div id="mission-title">🎯 MISSION 🎯</div>
+
             <div id="mission-objective">성진이발을 찾으세요!</div>
-            <div id="mission-hint">도로 끝에 숨겨진 비밀의 장소...</div>
             <div id="mission-arrow">⬇</div>
             <button id="start-button">모험 시작!</button>
         </div>
@@ -243,7 +214,8 @@
         W/↑: 전진<br>
         S/↓: 후진<br>
         A/←: 왼쪽<br>
-        D/→: 오른쪽
+        D/→: 오른쪽<br>
+        SPACE: 점프
     </div>
 
     <div id="modal">
@@ -287,7 +259,7 @@
         const MODEL_SCALE = 5; // Adjust this to change model size (start with 1 and adjust)
         const ACCELERATION = 4;
         const MAX_SPEED = 15;
-        const FRICTION = 0.95;
+        const FRICTION = 0.8; // Lower value = stops faster
         const TURN_SPEED = 2.5;
         const CAMERA_OFFSET = new THREE.Vector3(0, 8, 12); // Lower camera angle
         const CAMERA_LERP_FACTOR = 0.1;
@@ -1057,8 +1029,16 @@
             forward: false,
             backward: false,
             left: false,
-            right: false
+            right: false,
+            jump: false
         };
+
+        // Jump physics
+        let isJumping = false;
+        let jumpVelocity = 0;
+        const JUMP_FORCE = 15;
+        const GRAVITY = 35;
+        const GROUND_LEVEL = 0;
 
         // Keyboard input
         window.addEventListener('keydown', (e) => {
@@ -1078,6 +1058,14 @@
                 case 'd':
                 case 'arrowright':
                     keys.right = true;
+                    break;
+                case ' ':
+                    e.preventDefault(); // Prevent page scroll
+                    if (!isJumping) {
+                        keys.jump = true;
+                        isJumping = true;
+                        jumpVelocity = JUMP_FORCE;
+                    }
                     break;
             }
         });
@@ -1230,17 +1218,41 @@
             // Clamp velocity to max speed
             velocity = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, velocity));
 
-            // Apply friction
+            // Apply friction - stop quickly when no input
             if (!keys.forward && !keys.backward) {
                 velocity *= FRICTION;
-                if (Math.abs(velocity) < 0.01) velocity = 0;
+                if (Math.abs(velocity) < 0.5) velocity = 0; // Stop completely at low speed
+            }
+
+            // Jump physics
+            if (isJumping) {
+                jumpVelocity -= GRAVITY * delta;
+                car.position.y += jumpVelocity * delta;
+
+                // Check if landed
+                if (car.position.y <= GROUND_LEVEL) {
+                    car.position.y = GROUND_LEVEL;
+                    isJumping = false;
+                    jumpVelocity = 0;
+                    keys.jump = false;
+                }
+            }
+
+            // Sync model Y position with car
+            if (model) {
+                model.position.y = car.position.y;
             }
 
             // Update animation based on speed
             if (mixer && walkAction) {
                 const speed = Math.abs(velocity);
 
-                if (speed > 0.1) {
+                // Don't play walk animation if jumping
+                if (isJumping) {
+                    if (walkAction.isRunning()) {
+                        walkAction.paused = true;
+                    }
+                } else if (speed > 0.1) {
                     // Moving - play walk animation
                     if (!walkAction.isRunning()) {
                         walkAction.reset();
@@ -1258,7 +1270,9 @@
             } else if (mixer && idleAction && walkAction) {
                 // Fallback if both idle and walk exist
                 const speed = Math.abs(velocity);
-                if (speed > 0.5) {
+                if (isJumping) {
+                    // Don't change animation while jumping
+                } else if (speed > 0.5) {
                     fadeToAction(walkAction);
                     walkAction.paused = false;
                     walkAction.timeScale = speed / MAX_SPEED * 1.5;
