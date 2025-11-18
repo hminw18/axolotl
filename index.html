@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Car Controller</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        #modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 60px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -60%);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%);
+            }
+        }
+        #modal h2 {
+            color: white;
+            font-size: 28px;
+            margin: 0 0 30px 0;
+            text-align: center;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        #modal-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        #modal button {
+            padding: 15px 40px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #modal button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        #yes-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: 2px solid white;
+        }
+        #no-btn {
+            background: white;
+            color: #667eea;
+        }
+        #scream {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 120px;
+            font-weight: bold;
+            color: #ff0000;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            animation: shake 0.5s ease-in-out infinite;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) rotate(-5deg); }
+            50% { transform: translate(-50%, -50%) rotate(5deg); }
+        }
+        #mission-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            z-index: 8888;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 1s ease-out;
+        }
+        #mission-screen::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 20% 50%, rgba(255, 0, 150, 0.15) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(0, 200, 255, 0.15) 0%, transparent 50%);
+            animation: gradientShift 8s ease-in-out infinite;
+        }
+        @keyframes gradientShift {
+            0%, 100% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #mission-content {
+            text-align: center;
+            color: white;
+            position: relative;
+            z-index: 1;
+        }
+        #mission-title {
+            font-size: 72px;
+            font-weight: bold;
+            margin-bottom: 40px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.5),
+                         0 0 40px rgba(102, 126, 234, 0.8);
+            animation: neonPulse 2s ease-in-out infinite;
+            letter-spacing: 4px;
+        }
+        @keyframes neonPulse {
+            0%, 100% {
+                text-shadow: 0 0 20px rgba(255, 255, 255, 0.5),
+                             0 0 40px rgba(102, 126, 234, 0.8),
+                             0 0 60px rgba(102, 126, 234, 0.6);
+            }
+            50% {
+                text-shadow: 0 0 30px rgba(255, 255, 255, 0.8),
+                             0 0 60px rgba(102, 126, 234, 1),
+                             0 0 90px rgba(102, 126, 234, 0.8);
+            }
+        }
+        #mission-objective {
+            font-size: 48px;
+            font-weight: bold;
+            color: #FFD700;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            opacity: 0;
+            animation: typeIn 0.5s ease-out 1s forwards;
+        }
+        @keyframes typeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        #mission-hint {
+            font-size: 24px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 60px;
+            opacity: 0;
+            animation: typeIn 0.5s ease-out 1.8s forwards;
+        }
+        #mission-arrow {
+            font-size: 64px;
+            margin-top: 40px;
+            opacity: 0;
+            animation: bounce 1.5s ease-in-out 2.5s infinite, typeIn 0.5s ease-out 2.5s forwards;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        #start-button {
+            margin-top: 60px;
+            padding: 20px 60px;
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #333;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.4);
+            transition: all 0.3s ease;
+            opacity: 0;
+            animation: typeIn 0.5s ease-out 2.8s forwards;
+        }
+        #start-button:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <div id="mission-screen">
+        <div id="mission-content">
+            <div id="mission-title">🎯 MISSION 🎯</div>
+            <div id="mission-objective">성진이발을 찾으세요!</div>
+            <div id="mission-hint">도로 끝에 숨겨진 비밀의 장소...</div>
+            <div id="mission-arrow">⬇</div>
+            <button id="start-button">모험 시작!</button>
+        </div>
+    </div>
+
+    <div id="info">
+        W/↑: 전진<br>
+        S/↓: 후진<br>
+        A/←: 왼쪽<br>
+        D/→: 오른쪽
+    </div>
+
+    <div id="modal">
+        <h2>성진이발에 들어가시겠습니까?</h2>
+        <div id="modal-buttons">
+            <button id="yes-btn">예</button>
+            <button id="no-btn">아니요</button>
+        </div>
+    </div>
+
+    <div id="scream">으악!!!!</div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+
+        // Show mission screen immediately
+        const missionScreen = document.getElementById('mission-screen');
+        missionScreen.style.display = 'flex';
+
+        // Start button click handler
+        document.getElementById('start-button').addEventListener('click', () => {
+            missionScreen.style.display = 'none';
+        });
+
+        // Configuration
+        const MODEL_URL = './Character_output.fbx'; // Replace with your animal model URL
+        const WALK_ANIMATION_URL = './walking.fbx'; // Walking animation FBX file
+        const IDLE_ANIMATION_URL = null; // Optional idle animation FBX file (null if not needed)
+        const USE_MODEL = true; // Set to true to use GLB model instead of car
+        const MODEL_SCALE = 5; // Adjust this to change model size (start with 1 and adjust)
+        const ACCELERATION = 4;
+        const MAX_SPEED = 15;
+        const FRICTION = 0.95;
+        const TURN_SPEED = 2.5;
+        const CAMERA_OFFSET = new THREE.Vector3(0, 8, 12); // Lower camera angle
+        const CAMERA_LERP_FACTOR = 0.1;
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.Fog(0x87ceeb, 10, 100);
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(0, 8, 15);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // Lights
+        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        hemisphereLight.position.set(0, 20, 0);
+        scene.add(hemisphereLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.camera.top = 30;
+        directionalLight.shadow.camera.bottom = -30;
+        directionalLight.shadow.camera.left = -30;
+        directionalLight.shadow.camera.right = 30;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        scene.add(directionalLight);
+
+        // Ground - Create canvas texture for varied ground
+        const groundCanvas = document.createElement('canvas');
+        groundCanvas.width = 512;
+        groundCanvas.height = 512;
+        const gctx = groundCanvas.getContext('2d');
+
+        // Create pattern: alternating grass and dirt
+        const tileSize = 64;
+        for (let y = 0; y < 512; y += tileSize) {
+            for (let x = 0; x < 512; x += tileSize) {
+                const isGrass = (Math.floor(x/tileSize) + Math.floor(y/tileSize)) % 2 === 0;
+
+                if (isGrass) {
+                    // Grass color with slight variation
+                    const variation = Math.random() * 20 - 10;
+                    gctx.fillStyle = `rgb(${60 + variation}, ${120 + variation}, ${60 + variation})`;
+                } else {
+                    // Dirt/concrete color
+                    const variation = Math.random() * 15 - 7;
+                    gctx.fillStyle = `rgb(${100 + variation}, ${100 + variation}, ${90 + variation})`;
+                }
+
+                gctx.fillRect(x, y, tileSize, tileSize);
+
+                // Add some noise/detail
+                for (let i = 0; i < 20; i++) {
+                    const nx = x + Math.random() * tileSize;
+                    const ny = y + Math.random() * tileSize;
+                    gctx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.1})`;
+                    gctx.fillRect(nx, ny, 2, 2);
+                }
+            }
+        }
+
+        const groundTexture = new THREE.CanvasTexture(groundCanvas);
+        groundTexture.wrapS = THREE.RepeatWrapping;
+        groundTexture.wrapT = THREE.RepeatWrapping;
+        groundTexture.repeat.set(20, 20); // Repeat pattern
+
+        const groundGeometry = new THREE.PlaneGeometry(200, 200);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            map: groundTexture,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Grid helper (subtle)
+        const gridHelper = new THREE.GridHelper(200, 100, 0x000000, 0x000000);
+        gridHelper.material.opacity = 0.05;
+        gridHelper.material.transparent = true;
+        scene.add(gridHelper);
+
+        // Create Road (왕복 4차선, 각 차선 3.5m, longer)
+        const roadGeometry = new THREE.BoxGeometry(14, 0.1, 200);
+        const roadMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            roughness: 0.9,
+            metalness: 0.1
+        });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.position.set(0, 0.05, 0);
+        road.receiveShadow = true;
+        scene.add(road);
+
+        // Road markings
+        const lineGeometry = new THREE.BoxGeometry(0.2, 0.12, 3);
+        const lineMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.8
+        });
+
+        const solidLineGeometry = new THREE.BoxGeometry(0.2, 0.12, 200);
+        const yellowLineMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffff00,
+            roughness: 0.8
+        });
+
+        // 중앙 분리선 (노란색 실선 2개)
+        const centerLine1 = new THREE.Mesh(solidLineGeometry, yellowLineMaterial);
+        centerLine1.position.set(-0.5, 0.11, 0);
+        scene.add(centerLine1);
+
+        const centerLine2 = new THREE.Mesh(solidLineGeometry, yellowLineMaterial);
+        centerLine2.position.set(0.5, 0.11, 0);
+        scene.add(centerLine2);
+
+        // 좌측 방향 차선 구분선 (흰색 점선, 위쪽 2차선 사이)
+        for (let i = -95; i < 105; i += 8) {
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            line.position.set(-3.5, 0.11, i);
+            scene.add(line);
+        }
+
+        // 우측 방향 차선 구분선 (흰색 점선, 아래쪽 2차선 사이)
+        for (let i = -95; i < 105; i += 8) {
+            const line = new THREE.Mesh(lineGeometry, lineMaterial);
+            line.position.set(3.5, 0.11, i);
+            scene.add(line);
+        }
+
+        // 도로 가장자리 흰색 실선
+        const edgeLine1 = new THREE.Mesh(solidLineGeometry, lineMaterial);
+        edgeLine1.position.set(-7, 0.11, 0);
+        scene.add(edgeLine1);
+
+        const edgeLine2 = new THREE.Mesh(solidLineGeometry, lineMaterial);
+        edgeLine2.position.set(7, 0.11, 0);
+        scene.add(edgeLine2);
+
+        // Create Trees along the road
+        function createTree(x, z) {
+            const tree = new THREE.Group();
+
+            // Tree trunk
+            const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 3, 8);
+            const trunkMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B4513,
+                roughness: 0.9
+            });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.y = 1.5;
+            trunk.castShadow = true;
+            tree.add(trunk);
+
+            // Tree leaves (3 spheres stacked)
+            const leavesGeometry = new THREE.SphereGeometry(1.2, 8, 8);
+            const leavesMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2d5016,
+                roughness: 0.8
+            });
+
+            const leaves1 = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves1.position.y = 3.5;
+            leaves1.castShadow = true;
+            tree.add(leaves1);
+
+            const leaves2 = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves2.position.y = 4.3;
+            leaves2.scale.set(0.8, 0.8, 0.8);
+            leaves2.castShadow = true;
+            tree.add(leaves2);
+
+            tree.position.set(x, 0, z);
+            return tree;
+        }
+
+        // Place trees along both sides of the road
+        const collidableObjects = [];
+        for (let i = -90; i < 100; i += 8) {
+            const tree1 = createTree(-10, i);
+            tree1.userData.isCollidable = true;
+            tree1.userData.collisionType = 'cylinder';
+            tree1.userData.position = new THREE.Vector3(-10, 0, i);
+            tree1.userData.radius = 0.5;
+            scene.add(tree1);
+            collidableObjects.push(tree1);
+
+            const tree2 = createTree(10, i);
+            tree2.userData.isCollidable = true;
+            tree2.userData.collisionType = 'cylinder';
+            tree2.userData.position = new THREE.Vector3(10, 0, i);
+            tree2.userData.radius = 0.5;
+            scene.add(tree2);
+            collidableObjects.push(tree2);
+        }
+
+        // Add more scattered trees
+        const extraTreePositions = [
+            [-15, -20], [-18, -10], [-15, 5], [-20, 15], [-17, 25],
+            [15, -25], [18, -15], [16, 0], [20, 20], [17, 35]
+        ];
+        extraTreePositions.forEach(([x, z]) => {
+            const tree = createTree(x, z);
+            tree.userData.isCollidable = true;
+            tree.userData.collisionType = 'cylinder';
+            tree.userData.position = new THREE.Vector3(x, 0, z);
+            tree.userData.radius = 0.5;
+            scene.add(tree);
+            collidableObjects.push(tree);
+        });
+
+        // Create Building function
+        function createBuilding(width, height, depth, color, x, z) {
+            const building = new THREE.Group();
+
+            // Building body
+            const buildingGeometry = new THREE.BoxGeometry(width, height, depth);
+            const buildingMaterial = new THREE.MeshStandardMaterial({
+                color: color,
+                roughness: 0.7,
+                metalness: 0.3
+            });
+            const buildingMesh = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            buildingMesh.position.y = height / 2;
+            buildingMesh.castShadow = true;
+            buildingMesh.receiveShadow = true;
+            building.add(buildingMesh);
+
+            // Windows
+            const windowSize = Math.min(width, depth) * 0.15;
+            const windowGeometry = new THREE.PlaneGeometry(windowSize, windowSize);
+            const windowMaterial = new THREE.MeshStandardMaterial({
+                color: 0x87ceeb,
+                metalness: 0.9,
+                roughness: 0.1,
+                emissive: 0x4488ff,
+                emissiveIntensity: 0.2
+            });
+
+            // Add windows on front and sides
+            const floors = Math.floor(height / 3);
+            const windowsPerFloor = Math.floor(width / 2);
+
+            for (let floor = 1; floor < floors; floor++) {
+                for (let w = 0; w < windowsPerFloor; w++) {
+                    // Front windows
+                    const windowFront = new THREE.Mesh(windowGeometry, windowMaterial);
+                    windowFront.position.set(
+                        -width/2 + width/(windowsPerFloor+1) * (w+1),
+                        floor * (height / floors),
+                        depth/2 + 0.01
+                    );
+                    building.add(windowFront);
+                }
+            }
+
+            building.position.set(x, 0, z);
+            return building;
+        }
+
+        // Create large "성진이발" building
+        function createMainBuilding() {
+            const building = new THREE.Group();
+
+            // Large building
+            const buildingGeometry = new THREE.BoxGeometry(15, 25, 12);
+            const buildingMaterial = new THREE.MeshStandardMaterial({
+                color: 0x8B8B8B,
+                roughness: 0.6,
+                metalness: 0.4
+            });
+            const buildingMesh = new THREE.Mesh(buildingGeometry, buildingMaterial);
+            buildingMesh.position.y = 12.5;
+            buildingMesh.castShadow = true;
+            buildingMesh.receiveShadow = true;
+            building.add(buildingMesh);
+
+            // No windows for 성진이발 building
+
+            // Glass door with "성진이발" text
+            // Create door texture
+            const doorCanvas = document.createElement('canvas');
+            doorCanvas.width = 512;
+            doorCanvas.height = 1024;
+            const ctx = doorCanvas.getContext('2d');
+
+            // Glass effect - greenish with transparency
+            const gradient = ctx.createLinearGradient(0, 0, 512, 0);
+            gradient.addColorStop(0, '#88dd88');
+            gradient.addColorStop(0.5, '#aaffaa');
+            gradient.addColorStop(1, '#88dd88');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, 512, 1024);
+
+            // Add door frame
+            ctx.strokeStyle = '#666666';
+            ctx.lineWidth = 10;
+            ctx.strokeRect(0, 0, 512, 1024);
+
+            // "성진" - horizontal, green color
+            ctx.fillStyle = '#00AA00';
+            ctx.font = 'bold 120px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('성진', 256, 250);
+
+            // "이발" - vertical, red color
+            ctx.fillStyle = '#DD0000';
+            ctx.font = 'bold 110px Arial';
+            ctx.fillText('이', 256, 500);
+            ctx.fillText('발', 256, 650);
+
+            const doorTexture = new THREE.CanvasTexture(doorCanvas);
+
+            const doorGeometry = new THREE.BoxGeometry(3, 6, 0.2);
+            const doorMaterial = new THREE.MeshStandardMaterial({
+                map: doorTexture,
+                metalness: 0.8,
+                roughness: 0.2,
+                transparent: true,
+                opacity: 0.9
+            });
+            const door = new THREE.Mesh(doorGeometry, doorMaterial);
+            door.position.set(0, 3, 6.1);
+            building.add(door);
+
+            return building;
+        }
+
+        // Add main building at end of road, facing the road
+        const mainBuilding = createMainBuilding();
+        mainBuilding.position.set(-13, 0, 90); // Next to road, at the end
+        mainBuilding.rotation.y = Math.PI / 2; // Rotate 90 degrees to face the road
+        mainBuilding.userData.isCollidable = true;
+        mainBuilding.userData.collisionType = 'box';
+        mainBuilding.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(-13, 12.5, 90),
+            new THREE.Vector3(12, 25, 15) // Swapped width and depth due to rotation
+        );
+        scene.add(mainBuilding);
+        collidableObjects.push(mainBuilding);
+
+        // Add smaller buildings
+        const buildings = [
+            { w: 8, h: 12, d: 8, color: 0xCCAAAA, x: 20, z: -15 },
+            { w: 6, h: 15, d: 6, color: 0xAABBCC, x: 25, z: 10 },
+            { w: 10, h: 10, d: 7, color: 0xBBAAAA, x: -20, z: 25 },
+            { w: 7, h: 18, d: 7, color: 0xAACC99, x: 22, z: 30 },
+            { w: 9, h: 8, d: 9, color: 0xCCBB99, x: -18, z: -25 }
+        ];
+
+        buildings.forEach(b => {
+            const building = createBuilding(b.w, b.h, b.d, b.color, b.x, b.z);
+            building.userData.isCollidable = true;
+            building.userData.collisionType = 'box';
+            building.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
+                new THREE.Vector3(b.x, b.h/2, b.z),
+                new THREE.Vector3(b.w, b.h, b.d)
+            );
+            scene.add(building);
+            collidableObjects.push(building);
+        });
+
+        // Street lights removed
+
+        // Create Bus with "5511" number
+        function createBus() {
+            const bus = new THREE.Group();
+
+            // Bus body
+            const bodyGeometry = new THREE.BoxGeometry(2.5, 2, 6);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2ecc71,
+                metalness: 0.4,
+                roughness: 0.6
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 1.5;
+            body.castShadow = true;
+            body.receiveShadow = true;
+            bus.add(body);
+
+            // Window material
+            const windowMaterial = new THREE.MeshStandardMaterial({
+                color: 0x87ceeb,
+                metalness: 0.8,
+                roughness: 0.2,
+                transparent: true,
+                opacity: 0.7
+            });
+
+            // Side windows geometry (thin, tall for bus sides)
+            const sideWindowGeometry = new THREE.BoxGeometry(0.1, 0.6, 1);
+
+            // Left side windows (3 windows)
+            for (let i = 0; i < 3; i++) {
+                const windowLeft = new THREE.Mesh(sideWindowGeometry, windowMaterial);
+                windowLeft.position.set(-1.3, 2, 1.5 - i * 1.5);
+                bus.add(windowLeft);
+            }
+
+            // Right side windows (3 windows)
+            for (let i = 0; i < 3; i++) {
+                const windowRight = new THREE.Mesh(sideWindowGeometry, windowMaterial);
+                windowRight.position.set(1.3, 2, 1.5 - i * 1.5);
+                bus.add(windowRight);
+            }
+
+            // Front window (windshield)
+            const frontWindowGeometry = new THREE.BoxGeometry(2, 1, 0.1);
+            const frontWindow = new THREE.Mesh(frontWindowGeometry, windowMaterial);
+            frontWindow.position.set(0, 2.2, 3.05);
+            bus.add(frontWindow);
+
+            // Rear window
+            const rearWindowGeometry = new THREE.BoxGeometry(2, 0.8, 0.1);
+            const rearWindow = new THREE.Mesh(rearWindowGeometry, windowMaterial);
+            rearWindow.position.set(0, 2, -3.05);
+            bus.add(rearWindow);
+
+            // Bus wheels
+            const busWheelGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.4, 16);
+            busWheelGeometry.rotateZ(Math.PI / 2);
+            const busWheelMaterial = new THREE.MeshStandardMaterial({
+                color: 0x222222,
+                metalness: 0.5,
+                roughness: 0.7
+            });
+
+            const busWheelPositions = [
+                { x: -1.4, y: 0.5, z: 2 },
+                { x: 1.4, y: 0.5, z: 2 },
+                { x: -1.4, y: 0.5, z: -2 },
+                { x: 1.4, y: 0.5, z: -2 }
+            ];
+
+            busWheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(busWheelGeometry, busWheelMaterial);
+                wheel.position.set(pos.x, pos.y, pos.z);
+                wheel.castShadow = true;
+                bus.add(wheel);
+            });
+
+            // Create canvas texture for front LED display "5511"
+            const frontCanvas = document.createElement('canvas');
+            frontCanvas.width = 512;
+            frontCanvas.height = 128;
+            const frontCtx = frontCanvas.getContext('2d');
+
+            // Black background for LED display
+            frontCtx.fillStyle = '#000000';
+            frontCtx.fillRect(0, 0, 512, 128);
+
+            // Yellow/orange LED text
+            frontCtx.fillStyle = '#ffcc00';
+            frontCtx.font = 'bold 80px Arial';
+            frontCtx.textAlign = 'center';
+            frontCtx.textBaseline = 'middle';
+            frontCtx.fillText('5511', 256, 64);
+
+            const frontDisplayTexture = new THREE.CanvasTexture(frontCanvas);
+
+            // Front LED display (above windshield)
+            const frontDisplayGeometry = new THREE.BoxGeometry(1.8, 0.4, 0.1);
+            const frontDisplayMaterial = new THREE.MeshStandardMaterial({
+                map: frontDisplayTexture,
+                metalness: 0.3,
+                roughness: 0.7,
+                emissive: 0x332200,
+                emissiveIntensity: 0.5
+            });
+            const frontDisplay = new THREE.Mesh(frontDisplayGeometry, frontDisplayMaterial);
+            frontDisplay.position.set(0, 3.1, 3.1);
+            bus.add(frontDisplay);
+
+            // Create canvas texture for rear number "5511"
+            const rearCanvas = document.createElement('canvas');
+            rearCanvas.width = 256;
+            rearCanvas.height = 256;
+            const rearCtx = rearCanvas.getContext('2d');
+
+            // White background
+            rearCtx.fillStyle = '#ffffff';
+            rearCtx.fillRect(0, 0, 256, 256);
+
+            // Black text
+            rearCtx.fillStyle = '#000000';
+            rearCtx.font = 'bold 100px Arial';
+            rearCtx.textAlign = 'center';
+            rearCtx.textBaseline = 'middle';
+            rearCtx.fillText('5511', 128, 128);
+
+            const rearNumberTexture = new THREE.CanvasTexture(rearCanvas);
+
+            // Rear number sign (on left side of rear window)
+            const rearSignGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.1);
+            const rearSignMaterial = new THREE.MeshStandardMaterial({
+                map: rearNumberTexture,
+                metalness: 0.2,
+                roughness: 0.8
+            });
+            const rearSign = new THREE.Mesh(rearSignGeometry, rearSignMaterial);
+            rearSign.position.set(-0.8, 2, -3.1);
+            bus.add(rearSign);
+
+            // Roof ventilation units (white boxes on top)
+            const ventGeometry = new THREE.BoxGeometry(0.8, 0.2, 0.6);
+            const ventMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                metalness: 0.3,
+                roughness: 0.7
+            });
+
+            for (let i = 0; i < 3; i++) {
+                const vent = new THREE.Mesh(ventGeometry, ventMaterial);
+                vent.position.set(0, 2.7, 1.5 - i * 1.5);
+                vent.castShadow = true;
+                bus.add(vent);
+            }
+
+            return bus;
+        }
+
+        const bus = createBus();
+        bus.position.set(7.5, 0, 10);
+        bus.rotation.y = 0; // Face forward
+        bus.userData.isCollidable = true;
+        bus.userData.collisionType = 'box';
+        bus.userData.isPushable = true;
+        bus.userData.velocity = new THREE.Vector3(0, 0, 0);
+        bus.userData.mass = 5; // Bus is heavier than car
+        bus.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(7.5, 1.5, 10),
+            new THREE.Vector3(2.3, 2.5, 5.8)  // bus body size (tighter)
+        );
+        scene.add(bus);
+        collidableObjects.push(bus);
+
+        // Create Car
+        const car = new THREE.Group();
+
+        // Car body
+        const bodyGeometry = new THREE.BoxGeometry(2, 0.8, 4);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0xff3333,
+            metalness: 0.6,
+            roughness: 0.4
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.8;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        car.add(body);
+
+        // Car cabin
+        const cabinGeometry = new THREE.BoxGeometry(1.6, 0.6, 2);
+        const cabinMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
+        cabin.position.y = 1.4;
+        cabin.position.z = -0.3;
+        cabin.castShadow = true;
+        cabin.receiveShadow = true;
+        car.add(cabin);
+
+        // Wheels
+        const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+        // Rotate geometry to align with X-axis (for proper rolling)
+        wheelGeometry.rotateZ(Math.PI / 2);
+
+        const wheelMaterial = new THREE.MeshStandardMaterial({
+            color: 0x222222,
+            metalness: 0.5,
+            roughness: 0.7
+        });
+
+        const wheels = [];
+        const wheelMeshes = [];
+        const wheelPositions = [
+            { x: -1.1, y: 0.4, z: 1.3 },   // Front left
+            { x: 1.1, y: 0.4, z: 1.3 },    // Front right
+            { x: -1.1, y: 0.4, z: -1.3 },  // Rear left
+            { x: 1.1, y: 0.4, z: -1.3 }    // Rear right
+        ];
+
+        wheelPositions.forEach((pos, index) => {
+            // Create a group for each wheel (for steering)
+            const wheelGroup = new THREE.Group();
+            wheelGroup.position.set(pos.x, pos.y, pos.z);
+
+            // Create the actual wheel mesh
+            const wheelMesh = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheelMesh.castShadow = true;
+            wheelMesh.receiveShadow = true;
+
+            wheelGroup.add(wheelMesh);
+            car.add(wheelGroup);
+
+            wheels.push(wheelGroup);
+            wheelMeshes.push(wheelMesh);
+        });
+
+        scene.add(car);
+        car.position.set(0, 0, 0);
+
+        // Animation variables
+        let model = null;
+        let mixer = null;
+        let idleAction = null;
+        let walkAction = null;
+        let currentAction = null;
+
+        // Load model (GLB or FBX)
+        if (USE_MODEL) {
+            const isFBX = MODEL_URL.toLowerCase().endsWith('.fbx');
+            const loader = isFBX ? new FBXLoader() : new GLTFLoader();
+
+            loader.load(
+                MODEL_URL,
+                (loadedModel) => {
+                    // Handle both GLTF (has .scene) and FBX (is the model itself)
+                    model = loadedModel.scene || loadedModel;
+                    model.position.copy(car.position);
+                    model.rotation.copy(car.rotation);
+
+                    // Scale the model
+                    model.scale.set(MODEL_SCALE, MODEL_SCALE, MODEL_SCALE);
+
+                    // Calculate bounding box to check model size
+                    const bbox = new THREE.Box3().setFromObject(model);
+                    const size = new THREE.Vector3();
+                    bbox.getSize(size);
+                    console.log('Model size:', size);
+                    console.log('Model position:', model.position);
+                    console.log('Model loaded successfully');
+
+                    // Enable shadows
+                    model.traverse((node) => {
+                        if (node.isMesh) {
+                            node.castShadow = true;
+                            node.receiveShadow = true;
+                        }
+                    });
+
+                    scene.add(model);
+
+                    // Hide the car
+                    car.visible = false;
+
+                    // Setup animations - load from separate files if provided
+                    mixer = new THREE.AnimationMixer(model);
+
+                    // Function to load external animation
+                    function loadExternalAnimation(url, animationType) {
+                        return new Promise((resolve, reject) => {
+                            const animLoader = new FBXLoader();
+                            animLoader.load(
+                                url,
+                                (animFBX) => {
+                                    if (animFBX.animations && animFBX.animations.length > 0) {
+                                        console.log(`${animationType} animation loaded:`, animFBX.animations[0].name, `(${animFBX.animations[0].duration.toFixed(2)}s)`);
+                                        resolve(animFBX.animations[0]);
+                                    } else {
+                                        console.warn(`${animationType} animation file has no animations`);
+                                        resolve(null);
+                                    }
+                                },
+                                undefined,
+                                (error) => {
+                                    console.error(`Error loading ${animationType} animation:`, error);
+                                    reject(error);
+                                }
+                            );
+                        });
+                    }
+
+                    // Load walk animation
+                    const walkPromise = WALK_ANIMATION_URL ?
+                        loadExternalAnimation(WALK_ANIMATION_URL, 'Walk') :
+                        Promise.resolve(null);
+
+                    // Load idle animation
+                    const idlePromise = IDLE_ANIMATION_URL ?
+                        loadExternalAnimation(IDLE_ANIMATION_URL, 'Idle') :
+                        Promise.resolve(null);
+
+                    Promise.all([walkPromise, idlePromise])
+                        .then(([walkClip, idleClip]) => {
+                            if (walkClip) {
+                                walkAction = mixer.clipAction(walkClip);
+                                walkAction.play();
+                                walkAction.paused = true; // Start paused (stopped)
+                                console.log('Walk action created (paused)');
+                            }
+
+                            if (idleClip) {
+                                idleAction = mixer.clipAction(idleClip);
+                                idleAction.play();
+                                currentAction = idleAction;
+                                console.log('Idle action created and playing');
+                            }
+
+                            const animCount = (walkClip ? 1 : 0) + (idleClip ? 1 : 0);
+                            document.getElementById('info').innerHTML =
+                                'Use WASD or Arrow Keys to move<br>' +
+                                'Model loaded with ' + animCount + ' external animation(s)';
+                        })
+                        .catch((error) => {
+                            console.error('Error loading animations:', error);
+                            document.getElementById('info').innerHTML =
+                                'Use WASD or Arrow Keys to move<br>' +
+                                'Model loaded (animation load failed)';
+                        });
+                },
+                (progress) => {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    document.getElementById('info').innerHTML =
+                        'Loading model: ' + percent + '%';
+                },
+                (error) => {
+                    console.error('Error loading model:', error);
+                    document.getElementById('info').innerHTML =
+                        'Error loading model. Using car instead.';
+                    car.visible = true;
+                }
+            );
+        } else {
+            // Not using model - just use car
+        }
+
+        // Animation blending helper
+        function fadeToAction(action, duration = 0.3) {
+            if (currentAction === action) return;
+
+            if (currentAction) {
+                action.reset();
+                action.play();
+                action.crossFadeFrom(currentAction, duration, true);
+            } else {
+                action.play();
+            }
+
+            currentAction = action;
+        }
+
+        // Input state
+        const keys = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false
+        };
+
+        // Keyboard input
+        window.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    keys.forward = true;
+                    break;
+                case 's':
+                case 'arrowdown':
+                    keys.backward = true;
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    keys.left = true;
+                    break;
+                case 'd':
+                case 'arrowright':
+                    keys.right = true;
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'w':
+                case 'arrowup':
+                    keys.forward = false;
+                    break;
+                case 's':
+                case 'arrowdown':
+                    keys.backward = false;
+                    break;
+                case 'a':
+                case 'arrowleft':
+                    keys.left = false;
+                    break;
+                case 'd':
+                case 'arrowright':
+                    keys.right = false;
+                    break;
+            }
+        });
+
+        // Car physics
+        let velocity = 0;
+        let wheelRotation = 0;
+
+        // 성진이발 interaction
+        let isModalOpen = false;
+        let wasNearBuilding = false;
+        const modal = document.getElementById('modal');
+        const scream = document.getElementById('scream');
+        const yesBtn = document.getElementById('yes-btn');
+        const noBtn = document.getElementById('no-btn');
+
+        // Check distance to 성진이발 building
+        function checkNearMainBuilding() {
+            if (isModalOpen) return;
+
+            const distance = Math.sqrt(
+                Math.pow(car.position.x - (-13), 2) +
+                Math.pow(car.position.z - 90, 2)
+            );
+
+            const isNear = distance < 15;
+
+            // Show modal when entering the area (not already near)
+            if (isNear && !wasNearBuilding) {
+                showModal();
+            }
+
+            // Update state
+            wasNearBuilding = isNear;
+        }
+
+        function showModal() {
+            isModalOpen = true;
+            modal.style.display = 'block';
+        }
+
+        function hideModal() {
+            isModalOpen = false;
+            modal.style.display = 'none';
+        }
+
+        let currentModelScale = MODEL_SCALE;
+
+        yesBtn.addEventListener('click', () => {
+            hideModal();
+            scream.style.display = 'block';
+
+            // Scale model 3x from current size
+            if (model) {
+                model.scale.multiplyScalar(3);
+                currentModelScale *= 3;
+            }
+
+            // Hide scream after 2 seconds
+            setTimeout(() => {
+                scream.style.display = 'none';
+            }, 2000);
+        });
+
+        noBtn.addEventListener('click', () => {
+            hideModal();
+        });
+
+        // Collision detection function
+        function checkCollision(position, rotation, moveVector) {
+            // Car collision radius (treat car as circle in 2D for simple collision)
+            const carRadius = 1.8;
+
+            for (let obj of collidableObjects) {
+                if (obj.userData.collisionType === 'cylinder') {
+                    // Circle-to-circle collision (car vs tree trunk)
+                    const dx = position.x - obj.userData.position.x;
+                    const dz = position.z - obj.userData.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    const minDistance = carRadius + obj.userData.radius;
+
+                    if (distance < minDistance) {
+                        return { collided: true, object: obj };
+                    }
+                } else if (obj.userData.collisionType === 'box') {
+                    // Box collision (car vs bus)
+                    const carBoundingBox = new THREE.Box3().setFromCenterAndSize(
+                        new THREE.Vector3(position.x, 0.8, position.z),
+                        new THREE.Vector3(2.0, 1.6, 4.0) // Car size
+                    );
+
+                    if (carBoundingBox.intersectsBox(obj.userData.boundingBox)) {
+                        // If object is pushable, push it while colliding
+                        if (obj.userData.isPushable && moveVector) {
+                            // Transfer momentum to the bus
+                            const pushForce = moveVector.clone().multiplyScalar(0.5 / obj.userData.mass);
+                            obj.userData.velocity.add(pushForce);
+                        }
+                        return { collided: true, object: obj };
+                    }
+                }
+            }
+            return { collided: false, object: null };
+        }
+
+        // Animation loop
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            // Update animation mixer
+            if (mixer) {
+                mixer.update(delta);
+            } else if (USE_MODEL && model) {
+                console.warn('Model loaded but mixer is not initialized');
+            }
+
+            // Acceleration/Deceleration
+            if (keys.forward) {
+                velocity += ACCELERATION * delta;
+            }
+            if (keys.backward) {
+                velocity -= ACCELERATION * delta;
+            }
+
+            // Clamp velocity to max speed
+            velocity = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, velocity));
+
+            // Apply friction
+            if (!keys.forward && !keys.backward) {
+                velocity *= FRICTION;
+                if (Math.abs(velocity) < 0.01) velocity = 0;
+            }
+
+            // Update animation based on speed
+            if (mixer && walkAction) {
+                const speed = Math.abs(velocity);
+
+                if (speed > 0.1) {
+                    // Moving - play walk animation
+                    if (!walkAction.isRunning()) {
+                        walkAction.reset();
+                        walkAction.play();
+                    }
+                    walkAction.paused = false; // Ensure not paused
+                    // Adjust animation speed to match movement speed
+                    walkAction.timeScale = speed / MAX_SPEED * 1.5; // 1.5 is a multiplier, adjust as needed
+                } else {
+                    // Stopped - pause animation
+                    if (walkAction.isRunning()) {
+                        walkAction.paused = true;
+                    }
+                }
+            } else if (mixer && idleAction && walkAction) {
+                // Fallback if both idle and walk exist
+                const speed = Math.abs(velocity);
+                if (speed > 0.5) {
+                    fadeToAction(walkAction);
+                    walkAction.paused = false;
+                    walkAction.timeScale = speed / MAX_SPEED * 1.5;
+                } else {
+                    fadeToAction(idleAction);
+                }
+            }
+
+            // Steering
+            if (velocity !== 0) {
+                if (keys.left) {
+                    car.rotation.y += TURN_SPEED * delta * (velocity / MAX_SPEED);
+                }
+                if (keys.right) {
+                    car.rotation.y -= TURN_SPEED * delta * (velocity / MAX_SPEED);
+                }
+            }
+
+            // Sync model rotation with car
+            if (model) {
+                model.rotation.y = car.rotation.y;
+            }
+
+            // Move car forward/backward based on its rotation
+            const moveVector = new THREE.Vector3(0, 0, -1);
+            moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
+            moveVector.multiplyScalar(velocity * delta);
+
+            // Calculate new position
+            const newPosition = car.position.clone().add(moveVector);
+
+            // Check for collision
+            const collisionResult = checkCollision(newPosition, car.rotation.y, moveVector);
+            if (!collisionResult.collided) {
+                car.position.copy(newPosition);
+            } else {
+                // If colliding with pushable object, move with it
+                if (collisionResult.object && collisionResult.object.userData.isPushable) {
+                    // Move car along with the bus (reduced movement)
+                    const busMovement = collisionResult.object.userData.velocity.clone();
+                    car.position.add(busMovement);
+                } else {
+                    // Stop the car if collision with non-pushable object
+                    velocity = 0;
+                }
+            }
+
+            // Sync model position with car
+            if (model) {
+                model.position.copy(car.position);
+            }
+
+            // Rotate wheels
+            wheelRotation += velocity * delta * 2;
+            wheels.forEach((wheelGroup, index) => {
+                // Front wheels (index 0, 1) can steer
+                if (index < 2) {
+                    let steerAngle = 0;
+                    if (keys.left && velocity !== 0) steerAngle = 0.3;
+                    if (keys.right && velocity !== 0) steerAngle = -0.3;
+                    wheelGroup.rotation.y = steerAngle;
+                }
+            });
+
+            // Rotate wheel meshes (actual rolling)
+            wheelMeshes.forEach((wheelMesh) => {
+                wheelMesh.rotation.x = wheelRotation;
+            });
+
+            // Update pushable objects (like bus)
+            collidableObjects.forEach((obj) => {
+                if (obj.userData.isPushable) {
+                    // Apply velocity
+                    if (obj.userData.velocity.length() > 0.001) {
+                        obj.position.add(obj.userData.velocity);
+
+                        // Update bounding box
+                        obj.userData.boundingBox.setFromCenterAndSize(
+                            new THREE.Vector3(obj.position.x, 1.5, obj.position.z),
+                            new THREE.Vector3(2.3, 2.5, 5.8)
+                        );
+
+                        // Apply friction
+                        obj.userData.velocity.multiplyScalar(0.92);
+
+                        // Stop if velocity is very small
+                        if (obj.userData.velocity.length() < 0.001) {
+                            obj.userData.velocity.set(0, 0, 0);
+                        }
+                    }
+                }
+            });
+
+            // Camera follow (follow model if loaded, otherwise car)
+            const targetObject = model || car;
+
+            // Adjust camera based on model scale
+            let cameraOffset = CAMERA_OFFSET.clone();
+            if (currentModelScale >= MODEL_SCALE * 9) {
+                // Top-down view for large models
+                const scaleFactor = currentModelScale / (MODEL_SCALE * 9);
+                cameraOffset = new THREE.Vector3(0, 20 * scaleFactor, 5 * scaleFactor);
+            }
+
+            const idealOffset = cameraOffset
+                .applyAxisAngle(new THREE.Vector3(0, 1, 0), car.rotation.y);
+            const idealPosition = targetObject.position.clone().add(idealOffset);
+
+            camera.position.lerp(idealPosition, CAMERA_LERP_FACTOR);
+
+            // Look at point - adjust based on scale
+            const lookAtHeight = currentModelScale >= MODEL_SCALE * 9 ? currentModelScale * 0.3 : 0.5;
+            const lookAtPoint = targetObject.position.clone().add(new THREE.Vector3(0, lookAtHeight, 0));
+            camera.lookAt(lookAtPoint);
+
+            // Check proximity to 성진이발 building
+            checkNearMainBuilding();
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start animation loop
+        animate();
+    </script>
+</body>
+</html>
