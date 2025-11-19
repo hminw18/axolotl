@@ -241,6 +241,7 @@
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
         import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+        import { TGALoader } from 'three/addons/loaders/TGALoader.js';
 
         // Show mission screen immediately
         const missionScreen = document.getElementById('mission-screen');
@@ -415,77 +416,358 @@
         edgeLine2.position.set(7, 0.11, 0);
         scene.add(edgeLine2);
 
-        // Create Trees along the road
-        function createTree(x, z) {
-            const tree = new THREE.Group();
-
-            // Tree trunk
-            const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 3, 8);
-            const trunkMaterial = new THREE.MeshStandardMaterial({
-                color: 0x8B4513,
-                roughness: 0.9
-            });
-            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.y = 1.5;
-            trunk.castShadow = true;
-            tree.add(trunk);
-
-            // Tree leaves (3 spheres stacked)
-            const leavesGeometry = new THREE.SphereGeometry(1.2, 8, 8);
-            const leavesMaterial = new THREE.MeshStandardMaterial({
-                color: 0x2d5016,
-                roughness: 0.8
-            });
-
-            const leaves1 = new THREE.Mesh(leavesGeometry, leavesMaterial);
-            leaves1.position.y = 3.5;
-            leaves1.castShadow = true;
-            tree.add(leaves1);
-
-            const leaves2 = new THREE.Mesh(leavesGeometry, leavesMaterial);
-            leaves2.position.y = 4.3;
-            leaves2.scale.set(0.8, 0.8, 0.8);
-            leaves2.castShadow = true;
-            tree.add(leaves2);
-
-            tree.position.set(x, 0, z);
-            return tree;
-        }
-
-        // Place trees along both sides of the road
+        // Load 3D models
         const collidableObjects = [];
-        for (let i = -90; i < 100; i += 8) {
-            const tree1 = createTree(-10, i);
-            tree1.userData.isCollidable = true;
-            tree1.userData.collisionType = 'cylinder';
-            tree1.userData.position = new THREE.Vector3(-10, 0, i);
-            tree1.userData.radius = 0.5;
-            scene.add(tree1);
-            collidableObjects.push(tree1);
+        let treeModel = null;
+        let buildingModel = null;
+        let bigBuildingModel = null;
+        const buildingPackModels = []; // Array to hold multiple building models
 
-            const tree2 = createTree(10, i);
-            tree2.userData.isCollidable = true;
-            tree2.userData.collisionType = 'cylinder';
-            tree2.userData.position = new THREE.Vector3(10, 0, i);
-            tree2.userData.radius = 0.5;
-            scene.add(tree2);
-            collidableObjects.push(tree2);
+        // Create fences along the road (버스 높이의 절반)
+        function createFence(x, z) {
+            const fence = new THREE.Group();
+
+            // Fence post (기둥)
+            const postGeometry = new THREE.BoxGeometry(0.1, 1.2, 0.1);
+            const postMaterial = new THREE.MeshStandardMaterial({
+                color: 0x666666,
+                roughness: 0.8,
+                metalness: 0.5
+            });
+            const post = new THREE.Mesh(postGeometry, postMaterial);
+            post.position.y = 0.6;
+            post.castShadow = true;
+            fence.add(post);
+
+            // Horizontal bar (가로대 - 위쪽)
+            const barGeometry = new THREE.BoxGeometry(0.05, 0.05, 2);
+            const barMaterial = new THREE.MeshStandardMaterial({
+                color: 0x888888,
+                roughness: 0.7,
+                metalness: 0.4
+            });
+            const topBar = new THREE.Mesh(barGeometry, barMaterial);
+            topBar.position.y = 1.0;
+            topBar.castShadow = true;
+            fence.add(topBar);
+
+            // Horizontal bar (가로대 - 중간)
+            const middleBar = new THREE.Mesh(barGeometry, barMaterial);
+            middleBar.position.y = 0.5;
+            middleBar.castShadow = true;
+            fence.add(middleBar);
+
+            fence.position.set(x, 0, z);
+            return fence;
         }
 
-        // Add more scattered trees
-        const extraTreePositions = [
-            [-15, -20], [-18, -10], [-15, 5], [-20, 15], [-17, 25],
-            [15, -25], [18, -15], [16, 0], [20, 20], [17, 35]
+        // Create clouds in the sky
+        function createCloud(x, y, z) {
+            const cloud = new THREE.Group();
+
+            // Cloud material
+            const cloudMaterial = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.7,
+                roughness: 1.0,
+                metalness: 0.0
+            });
+
+            // Create multiple spheres to form a cloud
+            const sphereCount = 5 + Math.floor(Math.random() * 3);
+            for (let i = 0; i < sphereCount; i++) {
+                const radius = 3 + Math.random() * 2;
+                const sphereGeometry = new THREE.SphereGeometry(radius, 16, 16);
+                const sphere = new THREE.Mesh(sphereGeometry, cloudMaterial);
+
+                // Random position within cloud
+                sphere.position.set(
+                    (Math.random() - 0.5) * 8,
+                    (Math.random() - 0.5) * 2,
+                    (Math.random() - 0.5) * 6
+                );
+
+                sphere.castShadow = false;
+                sphere.receiveShadow = false;
+                cloud.add(sphere);
+            }
+
+            cloud.position.set(x, y, z);
+            return cloud;
+        }
+
+        // Place clouds in the sky
+        const cloudPositions = [
+            { x: -30, y: 40, z: -50 },
+            { x: 20, y: 45, z: -30 },
+            { x: -40, y: 38, z: 10 },
+            { x: 35, y: 42, z: 30 },
+            { x: -25, y: 44, z: 50 },
+            { x: 40, y: 40, z: 70 },
+            { x: 10, y: 46, z: -70 },
+            { x: -35, y: 41, z: -20 },
+            { x: 25, y: 43, z: 0 },
+            { x: -15, y: 39, z: 80 }
         ];
-        extraTreePositions.forEach(([x, z]) => {
-            const tree = createTree(x, z);
-            tree.userData.isCollidable = true;
-            tree.userData.collisionType = 'cylinder';
-            tree.userData.position = new THREE.Vector3(x, 0, z);
-            tree.userData.radius = 0.5;
-            scene.add(tree);
-            collidableObjects.push(tree);
+
+        cloudPositions.forEach(pos => {
+            const cloud = createCloud(pos.x, pos.y, pos.z);
+            scene.add(cloud);
         });
+
+        // Place fences along both sides of the road
+        for (let i = -100; i < 100; i += 2) {
+            // Left side fence
+            const leftFence = createFence(-8, i);
+            leftFence.userData.isCollidable = true;
+            leftFence.userData.collisionType = 'fence';
+            leftFence.userData.position = new THREE.Vector3(-8, 0, i);
+            leftFence.userData.height = 1.2; // Jump over if higher than this
+            leftFence.userData.radius = 0.3;
+            scene.add(leftFence);
+            collidableObjects.push(leftFence);
+
+            // Right side fence
+            const rightFence = createFence(8, i);
+            rightFence.userData.isCollidable = true;
+            rightFence.userData.collisionType = 'fence';
+            rightFence.userData.position = new THREE.Vector3(8, 0, i);
+            rightFence.userData.height = 1.2;
+            rightFence.userData.radius = 0.3;
+            scene.add(rightFence);
+            collidableObjects.push(rightFence);
+        }
+
+        // Load tree model with textures
+        const tgaLoader = new TGALoader();
+        const treeLoader = new FBXLoader();
+        treeLoader.setPath('./tree/');
+        treeLoader.load('AlanTree.fbx', (fbx) => {
+            treeModel = fbx;
+            treeModel.scale.set(0.1, 0.1, 0.1); // Adjust scale (doubled)
+
+            // Rotate tree to stand upright
+            treeModel.rotation.x = -Math.PI / 2; // Rotate 90 degrees to stand up
+
+            // Load textures manually with TGALoader
+            const barkTexture = tgaLoader.load('./tree/BroadleafBark.tga');
+            const leavesTexture = tgaLoader.load('./tree/SampleLeaves_2.tga');
+
+            // Apply textures to meshes
+            treeModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+
+                    console.log('Tree mesh name:', node.name, 'visible:', node.visible);
+
+                    // Make sure all meshes are visible and have material
+                    node.visible = true;
+
+                    // Apply green material for all parts
+                    node.material = new THREE.MeshStandardMaterial({
+                        color: 0x2d5016, // Green for leaves/tree
+                        roughness: 0.8,
+                        metalness: 0.1,
+                        side: THREE.DoubleSide // Render both sides
+                    });
+                }
+            });
+
+            console.log('Tree model loaded');
+            placeTrees();
+        }, undefined, (error) => {
+            console.error('Error loading tree:', error);
+        });
+
+        // Load cartoon building model (newer FBX version)
+        const buildingLoader = new FBXLoader();
+        const textureLoader = new THREE.TextureLoader();
+
+        buildingLoader.load('cartoon_building/cartoon_building.fbx', (fbx) => {
+            buildingModel = fbx;
+            buildingModel.scale.set(0.1, 0.1, 0.1); // Adjust scale (doubled)
+
+            // Load textures from cartoon_building/textures/
+            const albedoMap = textureLoader.load('cartoon_building/textures/cartoon_building_Albedo.png');
+            const aoMap = textureLoader.load('cartoon_building/textures/cartoon_building_AO.png');
+            const normalMap = textureLoader.load('cartoon_building/textures/cartoon_building_Normal.png');
+            const roughnessMap = textureLoader.load('cartoon_building/textures/cartoon_building_Roughness.png');
+            const metallicMap = textureLoader.load('cartoon_building/textures/cartoon_building_Metallic.png');
+
+            // Enable shadows and apply texture
+            buildingModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+                    console.log('Building mesh:', node.name);
+
+                    // Apply material with proper textures
+                    node.material = new THREE.MeshStandardMaterial({
+                        map: albedoMap,
+                        aoMap: aoMap,
+                        normalMap: normalMap,
+                        roughnessMap: roughnessMap,
+                        metalnessMap: metallicMap,
+                        roughness: 1.0,
+                        metalness: 0.0
+                    });
+                }
+            });
+
+            console.log('Building model loaded');
+            placeBuildings();
+        }, undefined, (error) => {
+            console.error('Error loading building:', error);
+        });
+
+        // Load Building_001.fbx (no texture version)
+        const bigBuildingLoader = new FBXLoader();
+        bigBuildingLoader.load('./Building_001.fbx', (fbx) => {
+            bigBuildingModel = fbx;
+            bigBuildingModel.scale.set(0.005, 0.005, 0.005); // Adjust scale
+
+            // Enable shadows and apply basic material
+            bigBuildingModel.traverse((node) => {
+                if (node.isMesh) {
+                    node.castShadow = true;
+                    node.receiveShadow = true;
+
+                    // Apply a basic gray material
+                    node.material = new THREE.MeshStandardMaterial({
+                        color: 0xaaaaaa,
+                        roughness: 0.7,
+                        metalness: 0.3
+                    });
+
+                    console.log('Big building mesh:', node.name);
+                }
+            });
+
+            console.log('Big building model loaded');
+        }, undefined, (error) => {
+            console.error('Error loading big building:', error);
+        });
+
+        // Load BuildingPack models (Building1 ~ Building5)
+        const buildingPackLoader = new FBXLoader();
+        const buildingNames = ['Building1', 'Building2', 'Building3', 'Building4', 'Building5'];
+        let buildingsLoaded = 0;
+
+        buildingNames.forEach((buildingName, index) => {
+            buildingPackLoader.load(`./BuildingPack/${buildingName}.fbx`, (fbx) => {
+                fbx.scale.set(0.4, 0.4, 0.4); // Adjust scale (much bigger)
+
+                // Apply random colors for variety
+                const colors = [0x8B7355, 0xA0826D, 0x936B5C, 0xB8956A, 0x9E8B7E];
+
+                fbx.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+
+                        // Apply material with color
+                        node.material = new THREE.MeshStandardMaterial({
+                            color: colors[index % colors.length],
+                            roughness: 0.8,
+                            metalness: 0.2
+                        });
+                    }
+                });
+
+                buildingPackModels.push(fbx);
+                buildingsLoaded++;
+
+                console.log(`${buildingName} loaded (${buildingsLoaded}/${buildingNames.length})`);
+
+                // When all buildings are loaded, place them
+                if (buildingsLoaded === buildingNames.length) {
+                    placeBuildingPackModels();
+                }
+            }, undefined, (error) => {
+                console.error(`Error loading ${buildingName}:`, error);
+            });
+        });
+
+        // Place BuildingPack models along the road
+        function placeBuildingPackModels() {
+            const positions = [
+                { x: -18, z: -80, rotation: Math.PI / 2, model: 0 },
+                { x: 18, z: -60, rotation: -Math.PI / 2, model: 1 },
+                { x: -18, z: -40, rotation: Math.PI / 2, model: 2 },
+                { x: 18, z: -20, rotation: -Math.PI / 2, model: 3 },
+                { x: -18, z: 0, rotation: Math.PI / 2, model: 4 },
+                { x: 18, z: 20, rotation: -Math.PI / 2, model: 0 },
+                { x: -18, z: 40, rotation: Math.PI / 2, model: 1 },
+                { x: 18, z: 80, rotation: -Math.PI / 2, model: 2 },
+            ];
+
+            positions.forEach(pos => {
+                const building = buildingPackModels[pos.model].clone();
+                building.position.set(pos.x, 0, pos.z);
+                building.rotation.y = pos.rotation;
+
+                building.userData.isCollidable = true;
+                building.userData.collisionType = 'box';
+                building.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
+                    new THREE.Vector3(pos.x, 8, pos.z),
+                    new THREE.Vector3(12, 16, 12)
+                );
+
+                scene.add(building);
+                collidableObjects.push(building);
+            });
+
+            console.log('BuildingPack models placed');
+        }
+
+        // Place trees after model is loaded
+        function placeTrees() {
+            if (!treeModel) return;
+
+            // Place trees along both sides of the road
+            for (let i = -90; i < 100; i += 8) {
+                const tree1 = treeModel.clone();
+                tree1.position.set(-10, 0, i);
+                tree1.userData.isCollidable = true;
+                tree1.userData.collisionType = 'cylinder';
+                tree1.userData.position = new THREE.Vector3(-10, 0, i);
+                tree1.userData.radius = 3.8;
+                tree1.userData.height = 2.0; // Can jump over if higher than 2m
+                scene.add(tree1);
+                collidableObjects.push(tree1);
+
+                const tree2 = treeModel.clone();
+                tree2.position.set(10, 0, i);
+                tree2.userData.isCollidable = true;
+                tree2.userData.collisionType = 'cylinder';
+                tree2.userData.position = new THREE.Vector3(10, 0, i);
+                tree2.userData.radius = 3.8;
+                tree2.userData.height = 2.0;
+                scene.add(tree2);
+                collidableObjects.push(tree2);
+            }
+
+            // Add more scattered trees
+            const extraTreePositions = [
+                [-15, -20], [-18, -10], [-15, 5], [-20, 15], [-17, 25],
+                [15, -25], [18, -15], [16, 0], [20, 20], [17, 35]
+            ];
+            extraTreePositions.forEach(([x, z]) => {
+                const tree = treeModel.clone();
+                tree.position.set(x, 0, z);
+                tree.userData.isCollidable = true;
+                tree.userData.collisionType = 'cylinder';
+                tree.userData.position = new THREE.Vector3(x, 0, z);
+                tree.userData.radius = 5.0;
+                tree.userData.height = 2.0;
+                scene.add(tree);
+                collidableObjects.push(tree);
+            });
+
+            console.log('Trees placed');
+        }
 
         // Create Building function
         function createBuilding(width, height, depth, color, x, z) {
@@ -618,26 +900,32 @@
         scene.add(mainBuilding);
         collidableObjects.push(mainBuilding);
 
-        // Add smaller buildings
-        const buildings = [
-            { w: 8, h: 12, d: 8, color: 0xCCAAAA, x: 20, z: -15 },
-            { w: 6, h: 15, d: 6, color: 0xAABBCC, x: 25, z: 10 },
-            { w: 10, h: 10, d: 7, color: 0xBBAAAA, x: -20, z: 25 },
-            { w: 7, h: 18, d: 7, color: 0xAACC99, x: 22, z: 30 },
-            { w: 9, h: 8, d: 9, color: 0xCCBB99, x: -18, z: -25 }
-        ];
+        // Place buildings after model is loaded
+        function placeBuildings() {
+            if (!buildingModel) return;
 
-        buildings.forEach(b => {
-            const building = createBuilding(b.w, b.h, b.d, b.color, b.x, b.z);
-            building.userData.isCollidable = true;
-            building.userData.collisionType = 'box';
-            building.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
-                new THREE.Vector3(b.x, b.h/2, b.z),
-                new THREE.Vector3(b.w, b.h, b.d)
-            );
-            scene.add(building);
-            collidableObjects.push(building);
-        });
+            // Only 2 cartoon buildings, placed along the road
+            const buildingPositions = [
+                { x: -15, z: -60, rotation: Math.PI / 2 },
+                { x: 15, z: 60, rotation: -Math.PI / 2 }
+            ];
+
+            buildingPositions.forEach(pos => {
+                const building = buildingModel.clone();
+                building.position.set(pos.x, 0, pos.z);
+                building.rotation.y = pos.rotation;
+                building.userData.isCollidable = true;
+                building.userData.collisionType = 'box';
+                building.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
+                    new THREE.Vector3(pos.x, 5, pos.z),
+                    new THREE.Vector3(8, 10, 8)
+                );
+                scene.add(building);
+                collidableObjects.push(building);
+            });
+
+            console.log('Buildings placed (2 cartoon buildings)');
+        }
 
         // Street lights removed
 
@@ -800,15 +1088,15 @@
         }
 
         const bus = createBus();
-        bus.position.set(7.5, 0, 10);
+        bus.position.set(-4, 0, 10);
         bus.rotation.y = 0; // Face forward
         bus.userData.isCollidable = true;
         bus.userData.collisionType = 'box';
-        bus.userData.isPushable = true;
+        bus.userData.isPushable = false; // Fixed in place
         bus.userData.velocity = new THREE.Vector3(0, 0, 0);
         bus.userData.mass = 5; // Bus is heavier than car
         bus.userData.boundingBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(7.5, 1.5, 10),
+            new THREE.Vector3(-5.2, 1.5, 10),
             new THREE.Vector3(2.3, 2.5, 5.8)  // bus body size (tighter)
         );
         scene.add(bus);
@@ -1061,11 +1349,9 @@
                     break;
                 case ' ':
                     e.preventDefault(); // Prevent page scroll
-                    if (!isJumping) {
-                        keys.jump = true;
-                        isJumping = true;
-                        jumpVelocity = JUMP_FORCE;
-                    }
+                    // Add upward velocity on each press
+                    jumpVelocity = JUMP_FORCE;
+                    isJumping = true;
                     break;
             }
         });
@@ -1139,10 +1425,10 @@
             hideModal();
             scream.style.display = 'block';
 
-            // Scale model 3x from current size
+            // Scale model 2x from current size
             if (model) {
-                model.scale.multiplyScalar(3);
-                currentModelScale *= 3;
+                model.scale.multiplyScalar(2);
+                currentModelScale *= 2;
             }
 
             // Hide scream after 2 seconds
@@ -1169,6 +1455,24 @@
                     const minDistance = carRadius + obj.userData.radius;
 
                     if (distance < minDistance) {
+                        // Check if jumping over the tree
+                        if (obj.userData.height && car.position.y > obj.userData.height) {
+                            continue; // Jump over
+                        }
+                        return { collided: true, object: obj };
+                    }
+                } else if (obj.userData.collisionType === 'fence') {
+                    // Fence collision - can jump over
+                    const dx = position.x - obj.userData.position.x;
+                    const dz = position.z - obj.userData.position.z;
+                    const distance = Math.sqrt(dx * dx + dz * dz);
+                    const minDistance = carRadius + obj.userData.radius;
+
+                    if (distance < minDistance) {
+                        // Check if jumping over the fence
+                        if (car.position.y > obj.userData.height) {
+                            continue; // Jump over
+                        }
                         return { collided: true, object: obj };
                     }
                 } else if (obj.userData.collisionType === 'box') {
@@ -1184,8 +1488,11 @@
                             // Transfer momentum to the bus
                             const pushForce = moveVector.clone().multiplyScalar(0.5 / obj.userData.mass);
                             obj.userData.velocity.add(pushForce);
+                            return { collided: true, object: obj };
+                        } else {
+                            // Not pushable - block completely
+                            return { collided: true, object: obj };
                         }
-                        return { collided: true, object: obj };
                     }
                 }
             }
@@ -1224,8 +1531,8 @@
                 if (Math.abs(velocity) < 0.5) velocity = 0; // Stop completely at low speed
             }
 
-            // Jump physics
-            if (isJumping) {
+            // Jump physics - apply gravity and update position
+            if (isJumping || car.position.y > GROUND_LEVEL) {
                 jumpVelocity -= GRAVITY * delta;
                 car.position.y += jumpVelocity * delta;
 
@@ -1234,7 +1541,6 @@
                     car.position.y = GROUND_LEVEL;
                     isJumping = false;
                     jumpVelocity = 0;
-                    keys.jump = false;
                 }
             }
 
@@ -1371,10 +1677,10 @@
 
             // Adjust camera based on model scale
             let cameraOffset = CAMERA_OFFSET.clone();
-            if (currentModelScale >= MODEL_SCALE * 9) {
-                // Top-down view for large models
-                const scaleFactor = currentModelScale / (MODEL_SCALE * 9);
-                cameraOffset = new THREE.Vector3(0, 20 * scaleFactor, 5 * scaleFactor);
+            if (currentModelScale >= MODEL_SCALE * 8) {
+                // Far view for large models
+                const scaleFactor = currentModelScale / (MODEL_SCALE * 8);
+                cameraOffset = new THREE.Vector3(0, 50 * scaleFactor, 80 * scaleFactor);
             }
 
             const idealOffset = cameraOffset
@@ -1384,7 +1690,7 @@
             camera.position.lerp(idealPosition, CAMERA_LERP_FACTOR);
 
             // Look at point - adjust based on scale
-            const lookAtHeight = currentModelScale >= MODEL_SCALE * 9 ? currentModelScale * 0.3 : 0.5;
+            const lookAtHeight = currentModelScale >= MODEL_SCALE * 8 ? currentModelScale * 0.3 : 0.5;
             const lookAtPoint = targetObject.position.clone().add(new THREE.Vector3(0, lookAtHeight, 0));
             camera.lookAt(lookAtPoint);
 
